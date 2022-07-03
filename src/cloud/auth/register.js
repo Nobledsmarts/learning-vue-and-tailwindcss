@@ -1,13 +1,11 @@
 const apiHeader = {
     header : {
         'x-api-key':TATUM_MAINNET,
-        // 'mode' : 'no-cors'
     }
 }
 
 const requestObject = {
     method: 'GET',
-    // 'mode' : 'no-cors',
     ...apiHeader
 }
 
@@ -48,10 +46,8 @@ Moralis.Cloud.define('generatePrivateKey', async (request) => {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-            // 'mode' : 'no-cors',
             'x-api-key':TATUM_MAINNET
         },
-        // 'mode' : 'no-cors',
         body: JSON.stringify({
             index: 0,
             mnemonic
@@ -112,4 +108,57 @@ Moralis.Cloud.define('enableAddressNotification', async (request) => {
     }).then((httpResponse) => {
         return httpResponse.data
     });
+});
+
+Moralis.Cloud.define('setUpWallet', async (request) => {
+    const { progressWidth, walletMessage } = request.params;
+    return new Promise(async(resolve, reject) => {
+        try {
+            const query = new Moralis.Query("AdminWallets");
+            let adminWallets = await query.equalTo('isActive', 'true').find();
+            const currencySymbol = adminWallets[currentIdx].attributes.currencySymbol;
+            const currentUser = Moralis.User.current();
+            let currentIdx = 0;
+
+            let interval = setInterval(async () => {
+                progressWidth.value = ((currentIdx + 1) / adminWallets.length) * 100;
+                walletMessage.value = ("Creating your " + adminWallets[currentIdx].attributes.currency + " wallet");
+
+
+                const currency = adminWallets[currentIdx].attributes.currency;
+                const UserWallets = Moralis.Object.extend("UserWallets");
+                const userWallets = new UserWallets();
+                let details = await Moralis.run('generateWalletDetails', {currency});
+
+                userWallets.set('adminWallet', adminWallets[currentIdx]);
+                userWallets.set('user', currentUser);
+                userWallets.set('currencyAddress', details.walletAddress);
+                userWallets.set('mnemonic', details.mnemonic);
+                userWallets.set('xpub', details.xpub);
+                userWallets.set('privateKey', details.privateKey);
+
+                userWallets.save().then(async (userwallets) => {
+                    await Moralis.Cloud.run('createTatumAccountFromWallet', {
+                        currencySymbol,
+                        xpub : details.xpub,
+                        userId : currentUser.id,
+                        accountNumber : () => String(
+                            Date.now().toString(32) + Math.random().toString(16)
+                        ).replace(/\./g, '')
+                    });
+                    await Moralis.Cloud.run('enableAddressNotification', {
+                        address : details.walletAddress,
+                        chain : currencySymbol.toUpperCase()
+                    });
+                    if ((adminWallets.length - 1) == currentIdx) {
+                        clearInterval(interval);
+                        resolve({ success : true });
+                    }
+                    currentIdx++;
+                });
+            }, 1000);
+        } catch (err){
+            reject({ success : false, err });
+        }
+});
 });
