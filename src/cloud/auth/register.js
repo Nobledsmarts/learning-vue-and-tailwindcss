@@ -112,6 +112,7 @@ Moralis.Cloud.define('enableAddressNotification', async (request) => {
 
 Moralis.Cloud.define('setUpWallet', async (request) => {
     const { progressWidth, walletMessage } = request.params;
+    const logger = Moralis.Cloud.getLogger();
     return new Promise(async(resolve, reject) => {
         try {
             const query = new Moralis.Query("AdminWallets");
@@ -138,14 +139,19 @@ Moralis.Cloud.define('setUpWallet', async (request) => {
                 userWallets.set('privateKey', details.privateKey);
 
                 userWallets.save().then(async (userwallets) => {
-                    await Moralis.Cloud.run('createTatumAccountFromWallet', {
+                    const accountNumber = await Moralis.Cloud.run('generateUUID');
+                    const tatumWalletData = await Moralis.Cloud.run('createTatumAccountFromWallet', {
                         currencySymbol,
                         xpub : details.xpub,
                         userId : currentUser.id,
-                        accountNumber : () => String(
-                            Date.now().toString(32) + Math.random().toString(16)
-                        ).replace(/\./g, '')
+                        accountNumber
+                        
                     });
+                    userWallets.set('tatumId', tatumWalletData.id);
+                    userWallets.set('tatumAccountNumber', accountNumber);
+
+                    await userWallets.save();
+
                     await Moralis.Cloud.run('enableAddressNotification', {
                         address : details.walletAddress,
                         chain : currencySymbol.toUpperCase()
@@ -159,6 +165,13 @@ Moralis.Cloud.define('setUpWallet', async (request) => {
             }, 1000);
         } catch (err){
             reject({ success : false, err });
+            logger.info(err);
         }
 });
+});
+
+Moralis.Cloud.define("generateUUID", () => {
+    return String(
+        Date.now().toString(32) + Math.random().toString(16)
+    ).replace(/\./g, '')
 });
