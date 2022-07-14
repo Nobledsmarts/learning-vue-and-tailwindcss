@@ -14,9 +14,9 @@ Moralis.Cloud.define("linkAddress", async (request) => {
 
 Moralis.Cloud.define('getUsdRate', async (request) => {
     const logger = Moralis.Cloud.getLogger();
-    const { currencySymbol } = request.params;
+    const { fsym } = request.params;
     return Moralis.Cloud.httpRequest({
-        url: `https://min-api.cryptocompare.com/data/price?fsym=${currencySymbol}&tsyms=usd`,
+        url: `https://min-api.cryptocompare.com/data/price?fsym=${fsym}&tsyms=usd`,
     }).then((httpResponse) => {
         return httpResponse.data['USD']
     });
@@ -82,7 +82,7 @@ Moralis.Cloud.define('cloudCryptoBalance', async(request) => {
                 });
 
                 const usdRate = await Moralis.Cloud.run('getUsdRate', {
-                    currencySymbol
+                    fsym : currencySymbol
                 });
 
                 const logger = Moralis.Cloud.getLogger();
@@ -193,7 +193,7 @@ Moralis.Cloud.define("getTransactions", async (request) => {
 
     // const wallets = await results;
 
-    const transactions = {};
+    const transactions = [];
 
      return new Promise(async(resolve, reject) => {
         try {
@@ -212,9 +212,20 @@ Moralis.Cloud.define("getTransactions", async (request) => {
                 const address = currentWallet.currencyAddress;
                 
 
-                const currentWalletTransactions = await Moralis.Cloud.run("fetchTransactions", { currency,  address, pageSize, offset});
-                
-                transactions[currency] = currentWalletTransactions;
+                let currentWalletTransactions = await Moralis.Cloud.run("fetchTransactions", { currency,  address, pageSize, offset});
+
+                currentWalletTransactions =  currentWalletTransactions.map((transactions) => {
+                    transactions.currency = currency;
+                    Moralis.Cloud.run('getUsdRate', {
+                        fsym : 'sats'
+                    }).then((rate) => {
+                        const usdAmount = rate * transactions.outputs[0].value;
+                        transactions.usdAmount = parseFloat(((usdAmount).toFixed(2)));
+                    })
+                    return transactions;
+                });
+                           
+                transactions.push(...currentWalletTransactions);
                 
                 if ((wallets[wallets.length - 1].id) == wallets[currentIdx].id) {
                     clearInterval(interval);
@@ -301,3 +312,5 @@ Moralis.Cloud.define('getEthTrxEndPoint', (request) => {
     const {address, query} = request.params;
     return `https://api-eu1.tatum.io/v3/ethereum/account/transaction/${address}?${query}`;
 });
+
+// Moralis.Cloud.define('satoshiTo')
