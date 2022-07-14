@@ -13,14 +13,14 @@
         </div>
         <!-- Activities -->
         <div class="wf-flex wf-flex-col wf-mt-5">
-            <div class="wf-flex wf-justify-between wf-mb-5" v-for="i in 10" :key="i">
+            <div class="wf-flex wf-justify-between wf-mb-5" v-for="(currency, idx) in transactionKeys" :key="idx">
                 <div class="wf-flex">
                     <figure class="wf-p-px wf-rounded-full wf-bg-gray-100 wf-shadow wf-flex wf-justify-center wf-items-center wf-mr-3">
                         <img src="../../../../src/assets/img/fritz_1.jpg" class="wf-cover wf-w-7 wf-h-7 wf-rounded-full">
                     </figure>
                     <p class="wf-flex wf-flex-col">
-                        <span class="wf-text-sm wf-font-bold wf-text-gray-900">
-                            Ethereum deposit
+                        <span class="wf-text-sm wf-font-bold wf-text-gray-900 capitalize">
+                            {{ currency }} Deposit
                         </span>
                         <span class="wf-text-xs wf-font-medium wf-text-gray-500">
                             08 Jan, 2022
@@ -34,3 +34,28 @@
         </div>
     </div>
 </template>
+
+<script setup lang="ts">
+    import { ref, watch, onBeforeMount, computed } from 'vue';
+    
+
+
+    
+    const transactions = ref([]);
+
+    const transactionKeys = computed(() => {
+        return Object.keys(transactions.value);
+    })
+
+    onBeforeMount(async () => {
+        transactions.value = await Moralis.Cloud.run("getTransactions");
+        console.log(transactions);
+        // balanceSideBarRight.value = balanceSideBarRight.value.map((list) => {
+        //     if (list.name == 'Crypto Currency'){
+        //         list.balance = balances.value.crypto;
+        //         return list;
+        //     }
+        //     return list;
+        // });
+    });
+</script>

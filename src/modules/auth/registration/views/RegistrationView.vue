@@ -132,11 +132,11 @@
     const progressWidth = ref(0);
     const walletHeading = ref('Setting up your account');
     const password_visible = ref(false);
-    const username = ref('');
-    const password = ref('');
-    const email = ref('');
-    const dob = ref('');
-    const acceptOurTerms = ref(false)
+    const username = ref('test' + new Date().getMilliseconds());
+    const password = ref('00testPass@');
+    const email = ref('test' + new Date().getMilliseconds() + '@mail.com');
+    const dob = ref(new Date());
+    const acceptOurTerms = ref(true)
     const password_error = ref(false);
     const password_error_msg = ref('Password must be at least 8 and not greater than 32 characters and contain uppercase, lowercase and number');
     const processRegistration = ref(false);
@@ -176,19 +176,21 @@
         try {
             let user = await useRegister(username.value, email.value, password.value, dob.value);
             processRegistration.value = false;
-            showWalletModal.value = true;
-            console.log('results');
-            useSetUpWallets(progressWidth, walletMessage).then(() => {
-                router.go({ name : "userDashboardView" });
+            // showWalletModal.value = true;
+            
+            Moralis.Cloud.run('setUpWallets', {progressWidth, walletMessage}).then((results) => {
+                console.log(results);
+                // router.go({ name : "userDashboardView" });
             }).catch((err) => {
                 console.log(err);
-                showModal.value = true;
+                // showModal.value = true;
             });
         } catch(e){
             processRegistration.value = false;
-            showModal.value = true;
+            // showModal.value = true;
             alert(e.message);
         }
+
     }
 
     onMounted(async () => {
